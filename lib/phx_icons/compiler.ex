@@ -6,9 +6,12 @@ defmodule PhxIcons.Compiler do
   def ensure_icons(icons_dir) do
     scan_icon_refs()
     |> Enum.group_by(fn {provider, _} -> provider end, fn {_, icon} -> icon end)
-    |> Task.async_stream(fn {provider, icons} ->
-      PhxIcons.Downloader.ensure_icons(provider, Enum.uniq(icons), icons_dir)
-    end)
+    |> Task.async_stream(
+      fn {provider, icons} ->
+        PhxIcons.Downloader.ensure_icons(provider, Enum.uniq(icons), icons_dir)
+      end,
+      timeout: :infinity
+    )
     |> Stream.run()
 
     :ok
