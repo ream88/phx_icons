@@ -2,32 +2,20 @@ defmodule PhxIcons do
   @moduledoc """
   Dynamic icon component for Phoenix LiveView.
 
-  Icons are referenced by `provider:name` and resolved at compile time. In dev,
-  unknown icons are fetched on-the-fly via `PhxIcons.Server`. In prod, a missing
-  icon raises at runtime.
+  Icons are resolved at compile time. Static references are discovered
+  automatically via source scanning. For dynamic names, configure the
+  provider with `download: :all` or a list of icon names.
 
   ## Usage
 
-  Add `use PhxIcons` to a module that already `use Phoenix.Component`:
-
-      defmodule MyAppWeb.CoreComponents do
+      defmodule MyAppWeb.Icons do
         use Phoenix.Component
         use PhxIcons
-
-        # icon/1 is now available with all discovered icons compiled in
       end
 
   Then in templates:
 
       <.icon name="heroicons:arrow-left" class="size-5" />
-      <.icon name="lucide:check" class="size-4" />
-
-  ## How it works
-
-  1. The `use PhxIcons` macro scans source files for `name="provider:icon"` references
-  2. Missing icons are downloaded from the provider's release archive
-  3. A function clause is generated per icon with the SVG inlined
-  4. `__mix_recompile__?/0` triggers recompilation when references change
   """
 
   use Phoenix.Component
@@ -62,30 +50,22 @@ defmodule PhxIcons do
     fallback =
       quote do
         def icon(%{name: name}) do
-          raise "PhxIcons: unknown icon #{name}. Ensure it is referenced in a template and compile."
+          raise "unknown icon #{name}. Configure the provider with download: :all or a list."
         end
       end
 
-    refs_hash = :erlang.md5(:erlang.term_to_binary(PhxIcons.Compiler.scan_icon_refs()))
     svgs_hash = :erlang.md5(:erlang.term_to_binary(icon_paths))
 
     recompile =
       quote do
         def __mix_recompile__? do
-          refs_hash =
-            PhxIcons.Compiler.scan_icon_refs()
-            |> :erlang.term_to_binary()
-            |> :erlang.md5()
-
           svgs =
             unquote(icons_dir)
             |> Path.join("*/*.svg")
             |> Path.wildcard()
             |> Enum.sort()
 
-          svgs_hash = :erlang.md5(:erlang.term_to_binary(svgs))
-
-          refs_hash != unquote(refs_hash) or svgs_hash != unquote(svgs_hash)
+          :erlang.md5(:erlang.term_to_binary(svgs)) != unquote(svgs_hash)
         end
       end
 
@@ -102,8 +82,25 @@ defmodule PhxIcons do
 
   @doc false
   def __render_svg__(assigns) do
+    assigns = Phoenix.Component.assign(assigns, :inner, uniquify_ids(assigns.inner))
+
     ~H"""
     <svg xmlns="http://www.w3.org/2000/svg" {@svg_attrs} class={@class} {@rest}><%= {:safe, @inner} %></svg>
     """
+  end
+
+  defp uniquify_ids(inner) do
+    case Regex.scan(~r/\bid="([^"]+)"/, inner) do
+      [] ->
+        inner
+
+      matches ->
+        prefix = "i#{System.unique_integer([:positive])}_"
+
+        matches
+        |> Enum.map(fn [_, id] -> id end)
+        |> Enum.uniq()
+        |> Enum.reduce(inner, fn id, acc -> String.replace(acc, id, prefix <> id) end)
+    end
   end
 end

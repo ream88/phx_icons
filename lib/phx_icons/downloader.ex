@@ -71,7 +71,7 @@ defmodule PhxIcons.Downloader do
           end
 
         {:error, reason} ->
-          raise "PhxIcons: failed to extract all from #{provider_key} (#{inspect(reason)})"
+          raise "phx_icons: failed to extract all from #{provider_key} (#{inspect(reason)})"
       end
 
       :ok
@@ -130,14 +130,14 @@ defmodule PhxIcons.Downloader do
           File.rename!(tmp_dest, dest)
         else
           File.rm(tmp_dest)
-          raise "PhxIcons: downloaded file from #{url} is not a valid zip archive"
+          raise "phx_icons: downloaded file from #{url} is not a valid zip archive"
         end
 
       {:ok, {{_, status, _}, _, _}} ->
-        raise "PhxIcons: failed to download #{url} (HTTP #{status})"
+        raise "phx_icons: failed to download #{url} (HTTP #{status})"
 
       {:error, reason} ->
-        raise "PhxIcons: failed to download #{url} (#{inspect(reason)})"
+        raise "phx_icons: failed to download #{url} (#{inspect(reason)})"
     end
   end
 
@@ -151,21 +151,21 @@ defmodule PhxIcons.Downloader do
         File.write!(Path.join(dest_dir, "#{icon_name}.svg"), content)
 
       {:ok, []} ->
-        raise "PhxIcons: #{provider_key}:#{icon_name} not found in archive (looked for #{file_in_zip})"
+        raise "phx_icons: #{provider_key}:#{icon_name} not found in archive (looked for #{file_in_zip})"
 
       {:error, reason} ->
-        raise "PhxIcons: failed to extract #{icon_name} (#{inspect(reason)})"
+        raise "phx_icons: failed to extract #{icon_name} (#{inspect(reason)})"
     end
   end
 
-  defp provider_config!(provider_key) do
+  def provider_config!(provider_key) do
     providers = Application.get_env(:phx_icons, :providers, %{})
     key = to_string(provider_key)
 
     case Map.get(providers, key) do
       {module, version} -> {module, version, []}
       {module, version, opts} -> {module, version, opts}
-      nil -> raise "PhxIcons: unknown provider #{key}. Configure it in :phx_icons, :providers"
+      nil -> raise "phx_icons: unknown provider #{key}. Configure it in :phx_icons, :providers"
     end
   end
 end
