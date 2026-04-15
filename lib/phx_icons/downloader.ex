@@ -5,6 +5,13 @@ defmodule PhxIcons.Downloader do
 
   @cache_dir Path.join(System.tmp_dir!(), "icons")
 
+  def prefetch(provider_keys) do
+    provider_keys
+    |> Enum.map(fn key -> provider_config!(key) end)
+    |> Enum.uniq_by(fn {module, version, _} -> {module, version} end)
+    |> Enum.each(fn {module, version, _} -> ensure_downloaded(module, version) end)
+  end
+
   def ensure_icons(provider_key, icon_names, icons_dir) do
     {module, version, opts} = provider_config!(provider_key)
 
@@ -40,11 +47,15 @@ defmodule PhxIcons.Downloader do
     File.mkdir_p!(@cache_dir)
     zip_path = Path.join(@cache_dir, "#{cache_key}-#{version}.zip")
 
-    if !File.exists?(zip_path) do
+    if !(File.exists?(zip_path) && valid_zip?(zip_path)) do
       download!(module.release_url(version), zip_path)
     end
 
     zip_path
+  end
+
+  defp valid_zip?(path) do
+    match?({:ok, _}, :zip.list_dir(String.to_charlist(path)))
   end
 
   defp download!(url, dest) do
@@ -60,12 +71,22 @@ defmodule PhxIcons.Downloader do
           match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
         ]
       ],
-      autoredirect: true
+      autoredirect: true,
+      timeout: 120_000
     ]
+
+    tmp_dest = dest <> ".#{System.unique_integer([:positive])}.part"
 
     case :httpc.request(:get, {String.to_charlist(url), []}, http_opts, body_format: :binary) do
       {:ok, {{_, 200, _}, _headers, body}} ->
-        File.write!(dest, body)
+        File.write!(tmp_dest, body)
+
+        if valid_zip?(tmp_dest) do
+          File.rename!(tmp_dest, dest)
+        else
+          File.rm(tmp_dest)
+          raise "PhxIcons: downloaded file from #{url} is not a valid zip archive"
+        end
 
       {:ok, {{_, status, _}, _, _}} ->
         raise "PhxIcons: failed to download #{url} (HTTP #{status})"

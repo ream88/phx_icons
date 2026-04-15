@@ -4,8 +4,15 @@ defmodule PhxIcons.Compiler do
   @icon_pattern ~r/name="([a-z][a-z0-9-]*):([a-z0-9][a-z0-9-]*)"/
 
   def ensure_icons(icons_dir) do
-    scan_icon_refs()
-    |> Enum.group_by(fn {provider, _} -> provider end, fn {_, icon} -> icon end)
+    refs =
+      scan_icon_refs()
+      |> Enum.group_by(fn {provider, _} -> provider end, fn {_, icon} -> icon end)
+
+    # Pre-download all unique zip archives sequentially to avoid concurrent
+    # downloads of the same file (e.g. heroicons and heroicons-micro share a zip).
+    PhxIcons.Downloader.prefetch(Map.keys(refs))
+
+    refs
     |> Task.async_stream(
       fn {provider, icons} ->
         PhxIcons.Downloader.ensure_icons(provider, Enum.uniq(icons), icons_dir)
