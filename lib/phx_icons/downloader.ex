@@ -1,8 +1,6 @@
 defmodule PhxIcons.Downloader do
   @moduledoc false
 
-  require Logger
-
   @cache_dir Path.join(System.tmp_dir!(), "icons")
 
   def prefetch(provider_keys) do
@@ -26,11 +24,58 @@ defmodule PhxIcons.Downloader do
       Enum.each(missing, fn name ->
         svg_path = module.svg_path(version, name, opts)
         extract_icon(zip_path, svg_path, name, icons_dir, provider_key)
-        Logger.debug("phx_icons: #{provider_key}:#{name}")
       end)
     end
 
     :ok
+  end
+
+  def ensure_all(provider_key, icons_dir) do
+    {module, version, opts} = provider_config!(provider_key)
+    zip_path = ensure_downloaded(module, version)
+    dest_dir = Path.join(icons_dir, to_string(provider_key))
+
+    if File.exists?(dest_dir) && File.ls!(dest_dir) != [] do
+      :ok
+    else
+      folder = version |> module.svg_path("__dummy__", opts) |> Path.dirname()
+      folder_prefix = String.to_charlist(folder <> "/")
+
+      {:ok, files} = :zip.list_dir(String.to_charlist(zip_path))
+
+      svgs =
+        files
+        |> Enum.filter(fn
+          {:zip_file, name, _, _, _, _} ->
+            name_str = to_string(name)
+            String.starts_with?(name_str, to_string(folder_prefix)) && String.ends_with?(name_str, ".svg")
+
+          _ ->
+            false
+        end)
+        |> Enum.map(fn {:zip_file, name, _, _, _, _} -> name end)
+
+      File.mkdir_p!(dest_dir)
+
+      case :zip.extract(String.to_charlist(zip_path), [{:file_list, svgs}, :memory]) do
+        {:ok, extracted} ->
+          for {name, content} <- extracted do
+            icon_name = name |> to_string() |> Path.basename(".svg") |> String.downcase()
+            File.write!(Path.join(dest_dir, "#{icon_name}.svg"), content)
+          end
+
+          for {alias_name, source_name} <- Keyword.get(opts, :aliases, %{}) do
+            source = Path.join(dest_dir, "#{source_name}.svg")
+            dest = Path.join(dest_dir, "#{alias_name}.svg")
+            if File.exists?(source) && !File.exists?(dest), do: File.cp!(source, dest)
+          end
+
+        {:error, reason} ->
+          raise "PhxIcons: failed to extract all from #{provider_key} (#{inspect(reason)})"
+      end
+
+      :ok
+    end
   end
 
   def icon_path(icons_dir, provider_key, icon_name) do

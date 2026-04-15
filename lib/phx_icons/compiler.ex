@@ -4,14 +4,36 @@ defmodule PhxIcons.Compiler do
   @icon_pattern ~r/name="([a-z][a-z0-9-]*):([a-z0-9][a-z0-9-]*)"/
 
   def ensure_icons(icons_dir) do
+    providers = Application.get_env(:phx_icons, :providers, %{})
+
+    {all_providers, scan_providers} =
+      Enum.split_with(providers, fn {_key, config} ->
+        opts =
+          case config do
+            {_, _, opts} -> opts
+            _ -> []
+          end
+
+        Keyword.get(opts, :download) == :all
+      end)
+
     refs =
       Enum.group_by(scan_icon_refs(), fn {provider, _} -> provider end, fn {_, icon} -> icon end)
 
-    # Pre-download all unique zip archives sequentially to avoid concurrent
-    # downloads of the same file (e.g. heroicons and heroicons-micro share a zip).
-    PhxIcons.Downloader.prefetch(Map.keys(refs))
+    all_keys = Map.keys(refs) ++ Enum.map(all_providers, fn {key, _} -> key end)
+    PhxIcons.Downloader.prefetch(Enum.uniq(all_keys))
+
+    all_providers
+    |> Task.async_stream(
+      fn {key, _config} -> PhxIcons.Downloader.ensure_all(key, icons_dir) end,
+      timeout: :infinity
+    )
+    |> Stream.run()
+
+    scan_keys = MapSet.new(scan_providers, fn {key, _} -> key end)
 
     refs
+    |> Enum.filter(fn {provider, _} -> MapSet.member?(scan_keys, provider) end)
     |> Task.async_stream(
       fn {provider, icons} ->
         PhxIcons.Downloader.ensure_icons(provider, Enum.uniq(icons), icons_dir)
@@ -42,7 +64,6 @@ defmodule PhxIcons.Compiler do
   end
 
   defp project_root do
-    # In an umbrella, CWD might be apps/my_app — walk up to find the umbrella root
     File.cwd!()
     |> Stream.iterate(&Path.dirname/1)
     |> Stream.take(4)
