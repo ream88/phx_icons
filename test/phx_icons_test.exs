@@ -31,16 +31,17 @@ defmodule PhxIconsTest do
 
       parsed = PhxIcons.SVG.parse(svg)
 
-      assert parsed.view_box == "0 0 24 24"
-      assert parsed.fill == "none"
-      assert parsed.stroke == "currentColor"
-      assert parsed.stroke_width == "1.5"
+      assert {"viewBox", "0 0 24 24"} in parsed.attrs
+      assert {"fill", "none"} in parsed.attrs
+      assert {"stroke", "currentColor"} in parsed.attrs
+      assert {"stroke-width", "1.5"} in parsed.attrs
+      refute Enum.any?(parsed.attrs, fn {k, _} -> k == "xmlns" end)
       assert parsed.inner =~ "M10.5 19.5"
     end
 
     test "defaults viewBox to 0 0 24 24" do
       svg = ~s[<svg xmlns="http://www.w3.org/2000/svg"><circle r="10" /></svg>]
-      assert PhxIcons.SVG.parse(svg).view_box == "0 0 24 24"
+      assert {"viewBox", "0 0 24 24"} in PhxIcons.SVG.parse(svg).attrs
     end
   end
 
@@ -113,7 +114,7 @@ defmodule PhxIconsTest do
     assert File.exists?(path), "expected #{path} to exist"
 
     svg = PhxIcons.SVG.parse(File.read!(path))
-    assert svg.view_box
+    assert Enum.any?(svg.attrs, fn {k, _} -> k == "viewBox" end)
     assert svg.inner =~ "<"
   end
 end

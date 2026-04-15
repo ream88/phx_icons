@@ -51,12 +51,7 @@ defmodule PhxIcons do
           def icon(%{name: unquote(full_name)} = assigns) do
             assigns =
               assigns
-              |> Phoenix.Component.assign(:view_box, unquote(svg.view_box))
-              |> Phoenix.Component.assign(:fill, unquote(svg.fill))
-              |> Phoenix.Component.assign(:stroke, unquote(svg.stroke))
-              |> Phoenix.Component.assign(:stroke_width, unquote(svg.stroke_width))
-              |> Phoenix.Component.assign(:stroke_linecap, unquote(svg.stroke_linecap))
-              |> Phoenix.Component.assign(:stroke_linejoin, unquote(svg.stroke_linejoin))
+              |> Phoenix.Component.assign(:svg_attrs, unquote(Macro.escape(svg.attrs)))
               |> Phoenix.Component.assign(:inner, unquote(svg.inner))
 
             PhxIcons.__render_svg__(assigns)
@@ -78,12 +73,7 @@ defmodule PhxIcons do
 
             assigns =
               assigns
-              |> Phoenix.Component.assign(:view_box, svg.view_box)
-              |> Phoenix.Component.assign(:fill, svg.fill)
-              |> Phoenix.Component.assign(:stroke, svg.stroke)
-              |> Phoenix.Component.assign(:stroke_width, svg.stroke_width)
-              |> Phoenix.Component.assign(:stroke_linecap, svg.stroke_linecap)
-              |> Phoenix.Component.assign(:stroke_linejoin, svg.stroke_linejoin)
+              |> Phoenix.Component.assign(:svg_attrs, svg.attrs)
               |> Phoenix.Component.assign(:inner, svg.inner)
 
             PhxIcons.__render_svg__(assigns)
@@ -128,17 +118,7 @@ defmodule PhxIcons do
   @doc false
   def __render_svg__(assigns) do
     ~H"""
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox={@view_box}
-      fill={@fill}
-      stroke={@stroke}
-      stroke-width={@stroke_width}
-      stroke-linecap={@stroke_linecap}
-      stroke-linejoin={@stroke_linejoin}
-      class={@class}
-      {@rest}
-    ><%= {:safe, @inner} %></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" {@svg_attrs} class={@class} {@rest}><%= {:safe, @inner} %></svg>
     """
   end
 end
