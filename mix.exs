@@ -22,8 +22,7 @@ defmodule PhxIcons.MixProject do
 
   def application do
     [
-      extra_applications: [:logger, :inets, :ssl, :public_key],
-      mod: {PhxIcons.Application, []}
+      extra_applications: [:logger, :inets, :ssl, :public_key]
     ]
   end
 

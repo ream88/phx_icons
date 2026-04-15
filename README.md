@@ -12,8 +12,6 @@ SVG at compile time.
   out of the box, with a simple behaviour to add your own
 - **Compile-time inlining** — icons are baked into your compiled modules as
   pattern-matched function clauses, zero runtime overhead
-- **Dev-time lazy loading** — unknown icons are fetched on-the-fly via a GenServer,
-  then picked up as static clauses on the next recompile
 - **Only downloads what you use** — zip archives are cached, individual SVGs
   extracted on demand
 
@@ -79,9 +77,6 @@ Then use icons in your templates:
 2. Missing icons are downloaded from the provider's GitHub release archive
 3. A function clause is generated per icon with the SVG inlined
 4. `__mix_recompile__?/0` triggers recompilation when new icon references appear
-
-In development, a GenServer fallback fetches unknown icons on-the-fly so you
-see them immediately. In production, a missing icon raises at compile time.
 
 ## Built-in providers
 

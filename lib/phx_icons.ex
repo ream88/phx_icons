@@ -60,24 +60,9 @@ defmodule PhxIcons do
       end
 
     fallback =
-      if Mix.env() == :prod do
-        quote do
-          def icon(%{name: name}) do
-            raise "PhxIcons: unknown icon #{name}. Ensure it is referenced in a template and compile."
-          end
-        end
-      else
-        quote do
-          def icon(%{name: name} = assigns) when is_binary(name) do
-            svg = PhxIcons.Server.fetch!(name)
-
-            assigns =
-              assigns
-              |> Phoenix.Component.assign(:svg_attrs, svg.attrs)
-              |> Phoenix.Component.assign(:inner, svg.inner)
-
-            PhxIcons.__render_svg__(assigns)
-          end
+      quote do
+        def icon(%{name: name}) do
+          raise "PhxIcons: unknown icon #{name}. Ensure it is referenced in a template and compile."
         end
       end
 
