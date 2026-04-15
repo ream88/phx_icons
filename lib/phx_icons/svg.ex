@@ -23,4 +23,19 @@ defmodule PhxIcons.SVG do
 
     %__MODULE__{inner: String.trim(inner), attrs: attrs}
   end
+
+  def uniquify_ids(inner) do
+    case Regex.scan(~r/\bid="([^"]+)"/, inner) do
+      [] ->
+        inner
+
+      matches ->
+        prefix = "i#{System.unique_integer([:positive])}_"
+
+        matches
+        |> Enum.map(fn [_, id] -> id end)
+        |> Enum.uniq()
+        |> Enum.reduce(inner, fn id, acc -> String.replace(acc, id, prefix <> id) end)
+    end
+  end
 end
