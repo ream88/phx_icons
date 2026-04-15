@@ -5,8 +5,7 @@ defmodule PhxIcons.Compiler do
 
   def ensure_icons(icons_dir) do
     refs =
-      scan_icon_refs()
-      |> Enum.group_by(fn {provider, _} -> provider end, fn {_, icon} -> icon end)
+      Enum.group_by(scan_icon_refs(), fn {provider, _} -> provider end, fn {_, icon} -> icon end)
 
     # Pre-download all unique zip archives sequentially to avoid concurrent
     # downloads of the same file (e.g. heroicons and heroicons-micro share a zip).
@@ -32,7 +31,7 @@ defmodule PhxIcons.Compiler do
   end
 
   defp source_files do
-    root = File.cwd!()
+    root = project_root()
     icons_lib = Path.expand("../../lib", __DIR__)
 
     root
@@ -40,6 +39,16 @@ defmodule PhxIcons.Compiler do
     |> Path.wildcard()
     |> Enum.concat(Path.wildcard(Path.join(root, "lib/**/*.{heex,ex}")))
     |> Enum.reject(&String.starts_with?(&1, icons_lib))
+  end
+
+  defp project_root do
+    # In an umbrella, CWD might be apps/my_app — walk up to find the umbrella root
+    File.cwd!()
+    |> Stream.iterate(&Path.dirname/1)
+    |> Stream.take(4)
+    |> Enum.find(File.cwd!(), fn dir ->
+      dir |> Path.join("apps/*/mix.exs") |> Path.wildcard() |> Enum.any?()
+    end)
   end
 
   defp extract_refs(path) do
