@@ -1,28 +1,54 @@
-defmodule PhoenixIcons.MixProject do
+defmodule PhxIcons.MixProject do
   use Mix.Project
+
+  @version "0.1.0"
+  @source_url "https://github.com/ream88/phx_icons"
 
   def project do
     [
-      app: :phoenix_icons,
-      version: "0.1.0",
-      elixir: "~> 1.19",
+      app: :phx_icons,
+      version: @version,
+      elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      name: "PhxIcons",
+      description:
+        "Dynamic icon library for Phoenix LiveView. Auto-discovers, downloads, and inlines SVG icons from multiple providers at compile time.",
+      package: package(),
+      docs: docs(),
+      source_url: @source_url
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :inets, :ssl, :public_key],
+      mod: {PhxIcons.Application, []}
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+      {:phoenix_live_view, ">= 0.0.0"},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:styler, "~> 1.0", only: [:dev, :test], runtime: false}
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["Mario Uher"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => @source_url},
+      files: ~w(lib priv/icons/.gitkeep .formatter.exs mix.exs README.md LICENSE)
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md"],
+      source_ref: "v#{@version}"
     ]
   end
 end
