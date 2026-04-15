@@ -46,9 +46,53 @@ defmodule PhxIconsTest do
   end
 
   describe "compiler" do
-    test "scans source files for icon references" do
-      refs = PhxIcons.Compiler.scan_icon_refs()
-      assert is_list(refs)
+    test "ensures icons are downloaded" do
+      icons_dir = Path.join(System.tmp_dir!(), "phx_icons_compiler_#{System.unique_integer([:positive])}")
+      PhxIcons.Downloader.ensure_icons("heroicons", ["heart"], icons_dir)
+      assert File.exists?(PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "heart"))
+    end
+  end
+
+  describe "HEEx scanning" do
+    test "finds icon refs in component calls" do
+      defmodule HEExTest do
+        use Phoenix.Component
+        use PhxIcons
+
+        def test(assigns) do
+          ~H"""
+          <.icon name="heroicons:heart" class="size-6" />
+          <.icon name="heroicons:bell" class="size-4" />
+          """
+        end
+      end
+
+      assert function_exported?(HEExTest, :icon, 1)
+    end
+
+    test "finds icon refs passed as component attributes" do
+      defmodule HEExAttrTest do
+        use Phoenix.Component
+        use PhxIcons
+
+        attr :icon, :string, required: true
+        slot :inner_block, required: true
+
+        def empty(assigns) do
+          ~H"""
+          <.icon name={@icon} class="size-12" />
+          {render_slot(@inner_block)}
+          """
+        end
+
+        def test(assigns) do
+          ~H"""
+          <.empty icon="heroicons:inbox">Nothing here</.empty>
+          """
+        end
+      end
+
+      assert function_exported?(HEExAttrTest, :icon, 1)
     end
   end
 
