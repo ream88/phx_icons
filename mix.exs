@@ -45,8 +45,6 @@ defmodule PhxIcons.MixProject do
 
   defp docs do
     [
-      main: "readme",
-      extras: ["README.md"],
       source_ref: "v#{@version}"
     ]
   end

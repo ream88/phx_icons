@@ -2,8 +2,6 @@ defmodule PhxIcons.Test do
   @moduledoc """
   Test helpers for asserting icon presence in rendered HTML.
 
-  Requires either `lazy_html` or `floki` as a dependency.
-
   ## Usage
 
       import PhxIcons.Test

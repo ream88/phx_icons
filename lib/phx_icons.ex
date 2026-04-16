@@ -1,22 +1,8 @@
 defmodule PhxIcons do
-  @moduledoc """
-  Dynamic icon component for Phoenix LiveView.
-
-  Icons are resolved at compile time. Static references are discovered
-  automatically via source scanning. For dynamic names, configure the
-  provider with `download: :all` or a list of icon names.
-
-  ## Usage
-
-      defmodule MyAppWeb.Icons do
-        use Phoenix.Component
-        use PhxIcons
-      end
-
-  Then in templates:
-
-      <.icon name="heroicons:arrow-left" class="size-5" />
-  """
+  @moduledoc "README.md"
+             |> File.read!()
+             |> String.split("<!-- MDOC !-->")
+             |> Enum.fetch!(1)
 
   use Phoenix.Component
 
