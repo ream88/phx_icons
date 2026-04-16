@@ -1,6 +1,8 @@
 defmodule PhxIcons.Compiler do
   @moduledoc false
 
+  alias Phoenix.LiveView.Tokenizer
+
   def ensure_icons(icons_dir) do
     providers = Application.get_env(:phx_icons, :providers, %{})
 
@@ -37,7 +39,8 @@ defmodule PhxIcons.Compiler do
       |> MapSet.new(fn {key, _} -> key end)
 
     if MapSet.size(scan_keys) > 0 do
-      scan_icon_refs(scan_keys)
+      scan_keys
+      |> scan_icon_refs()
       |> Enum.group_by(fn {provider, _} -> provider end, fn {_, icon} -> icon end)
       |> Task.async_stream(
         fn {provider, icons} ->
@@ -71,6 +74,9 @@ defmodule PhxIcons.Compiler do
       {:ok, ast} ->
         {_, refs} =
           Macro.prewalk(ast, [], fn
+            {:sigil_H, _, [{:<<>>, _, [text]}, _]}, acc when is_binary(text) ->
+              {nil, extract_refs_heex(text, provider_keys) ++ acc}
+
             node, acc when is_binary(node) ->
               case parse_icon_ref(node, provider_keys) do
                 {:ok, ref} -> {node, [ref | acc]}
@@ -89,31 +95,43 @@ defmodule PhxIcons.Compiler do
   end
 
   defp extract_refs_heex(content, provider_keys) do
-    state =
-      Phoenix.LiveView.Tokenizer.init(
-        0,
-        "nofile",
-        content,
-        Phoenix.LiveView.HTMLEngine
-      )
+    case EEx.tokenize(content) do
+      {:ok, eex_tokens} ->
+        eex_tokens
+        |> Enum.flat_map(fn
+          {:text, text, _meta} ->
+            tokenize_heex(to_string(text), provider_keys)
 
-    case Phoenix.LiveView.Tokenizer.tokenize(
-           content,
-           [line: 1, column: 1],
-           [],
-           {:text, :enabled},
-           state
-         ) do
-      {tokens, cont} ->
-        tokens = Phoenix.LiveView.Tokenizer.finalize(tokens, "nofile", cont, content)
+          {:expr, _marker, expr, _meta} ->
+            extract_refs_ex(to_string(expr), provider_keys)
 
-        tokens
-        |> Enum.flat_map(&extract_refs_from_token(&1, provider_keys))
+          _ ->
+            []
+        end)
         |> Enum.uniq()
 
-      _ ->
+      {:error, _} ->
         []
     end
+  end
+
+  defp tokenize_heex(text, provider_keys) do
+    state = Tokenizer.init(0, "nofile", text, Phoenix.LiveView.HTMLEngine)
+
+    {tokens, cont} =
+      Tokenizer.tokenize(
+        text,
+        [line: 1, column: 1],
+        [],
+        {:text, :enabled},
+        state
+      )
+
+    tokens = Tokenizer.finalize(tokens, "nofile", cont, text)
+
+    Enum.flat_map(tokens, &extract_refs_from_token(&1, provider_keys))
+  rescue
+    _ -> []
   end
 
   # <.icon name="heroicons:heart" /> — direct icon component call

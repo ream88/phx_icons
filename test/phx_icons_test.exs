@@ -75,8 +75,8 @@ defmodule PhxIconsTest do
         use Phoenix.Component
         use PhxIcons
 
-        attr :icon, :string, required: true
-        slot :inner_block, required: true
+        attr(:icon, :string, required: true)
+        slot(:inner_block, required: true)
 
         def empty(assigns) do
           ~H"""
@@ -93,6 +93,83 @@ defmodule PhxIconsTest do
       end
 
       assert function_exported?(HEExAttrTest, :icon, 1)
+    end
+
+    test "finds icon refs inside ~H sigils in .ex files" do
+      defmodule HEExSigilTest do
+        use Phoenix.Component
+        use PhxIcons
+
+        def render(assigns) do
+          ~H"""
+          <.icon name="heroicons:star" class="size-6" />
+          """
+        end
+      end
+
+      assert function_exported?(HEExSigilTest, :icon, 1)
+    end
+
+    test "finds icon refs in HEEx with EEx expressions" do
+      defmodule HEExEExTest do
+        use Phoenix.Component
+        use PhxIcons
+
+        def render(assigns) do
+          ~H"""
+          <%= if true do %>
+            <.icon name="heroicons:check" class="size-6" />
+          <% end %>
+          """
+        end
+      end
+
+      assert function_exported?(HEExEExTest, :icon, 1)
+    end
+
+    test "ignores non-icon components" do
+      defmodule HEExIgnoreTest do
+        use Phoenix.Component
+        use PhxIcons
+
+        attr(:name, :string, required: true)
+        def button(assigns), do: ~H"<button>{@name}</button>"
+
+        def render(assigns) do
+          ~H"""
+          <.button name="heroicons:heart" />
+          """
+        end
+      end
+
+      # The .button component's name="heroicons:heart" should not trigger a download.
+      # We can't easily test this in isolation since other tests download heart.svg,
+      # so we just verify the module compiled without errors.
+      assert function_exported?(HEExIgnoreTest, :button, 1)
+    end
+  end
+
+  describe "test helpers" do
+    import PhxIcons.Test
+
+    setup do
+      icons_dir = Path.join(Mix.Project.build_path(), "icons")
+      PhxIcons.Downloader.ensure_icons("heroicons", ["heart"], icons_dir)
+      :ok
+    end
+
+    test "assert_icon matches icon SVG content in HTML" do
+      icon_inner = PhxIcons.Test.__icon__("heroicons:heart")
+      html = "<div><svg>#{icon_inner}</svg></div>"
+      assert_icon html, "heroicons:heart"
+    end
+
+    test "refute_icon passes when HTML does not contain the icon" do
+      refute_icon "<div>no icons here</div>", "heroicons:heart"
+    end
+
+    test "refute_icon passes for plain text without icons" do
+      refute_icon "no icons here", "heroicons:heart"
     end
   end
 
