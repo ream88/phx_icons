@@ -1,0 +1,61 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  MIX_ENV: test
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.18"
+            otp: "27"
+            phoenix_live_view_version: "1.1.0"
+          - elixir: "1.18"
+            otp: "27"
+            phoenix_live_view_version: "0.20.0"
+
+          - elixir: "1.19"
+            otp: "27"
+            phoenix_live_view_version: "1.1.0"
+          - elixir: "1.19"
+            otp: "27"
+            phoenix_live_view_version: "0.20.0"
+
+          - elixir: "1.19"
+            otp: "28"
+            phoenix_live_view_version: "1.1.0"
+          - elixir: "1.19"
+            otp: "28"
+            phoenix_live_view_version: "0.20.0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ matrix.otp }}
+          elixir-version: ${{ matrix.elixir }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ matrix.elixir }}-${{ matrix.otp }}-${{ matrix.phoenix_live_view_version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            mix-${{ matrix.elixir }}-${{ matrix.otp }}-${{ matrix.phoenix_live_view_version }}-
+
+      - run: sed -i 's/{:phoenix_live_view, "~> 0.20 or ~> 1.0"}/{:phoenix_live_view, "~> ${{ matrix.phoenix_live_view_version }}"}/' mix.exs
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix test

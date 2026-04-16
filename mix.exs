@@ -28,7 +28,7 @@ defmodule PhxIcons.MixProject do
 
   defp deps do
     [
-      {:phoenix_live_view, ">= 0.0.0"},
+      {:phoenix_live_view, "~> 0.20 or ~> 1.0"},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:styler, "~> 1.0", only: [:dev, :test], runtime: false}
     ]
