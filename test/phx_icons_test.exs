@@ -158,9 +158,15 @@ defmodule PhxIconsTest do
       :ok
     end
 
-    test "assert_icon matches icon SVG content in HTML" do
-      icon_inner = PhxIcons.Test.__icon__("heroicons:heart")
-      html = "<div><svg>#{icon_inner}</svg></div>"
+    test "assert_icon matches icon in HTML with explicit closing tags" do
+      d = PhxIcons.Test.__icon__("heroicons:heart")
+      html = ~s[<svg><path d="#{d}"></path></svg>]
+      assert_icon html, "heroicons:heart"
+    end
+
+    test "assert_icon matches icon in HTML with self-closing tags" do
+      d = PhxIcons.Test.__icon__("heroicons:heart")
+      html = ~s[<svg><path d="#{d}"/></svg>]
       assert_icon html, "heroicons:heart"
     end
 

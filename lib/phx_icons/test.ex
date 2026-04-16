@@ -39,7 +39,10 @@ defmodule PhxIcons.Test do
     svg_path = Path.join([icons_dir, provider, "#{icon_name}.svg"])
 
     svg = PhxIcons.SVG.parse(File.read!(svg_path))
-    # Normalize self-closing tags to match HTML output
-    Regex.replace(~r|<(\w+)([^>]*?)/>|, svg.inner, "<\\1\\2></\\1>")
+
+    case Regex.run(~r/\bd="([^"]+)"/, svg.inner) do
+      [_, d] -> d
+      nil -> svg.inner
+    end
   end
 end
