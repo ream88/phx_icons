@@ -3,6 +3,16 @@ defmodule PhxIcons.Compiler do
 
   alias Phoenix.LiveView.Tokenizer
 
+  @initial_cont (case Application.spec(:phoenix_live_view, :vsn) do
+                   nil ->
+                     {:text, :enabled}
+
+                   vsn ->
+                     if Version.match?(List.to_string(vsn), "~> 0.20"),
+                       do: :text,
+                       else: {:text, :enabled}
+                 end)
+
   def ensure_icons(icons_dir, opts \\ []) do
     root = Keyword.get_lazy(opts, :root, &project_root/0)
     providers = Application.get_env(:phx_icons, :providers, %{})
@@ -125,7 +135,7 @@ defmodule PhxIcons.Compiler do
         text,
         [line: 1, column: 1],
         [],
-        {:text, :enabled},
+        @initial_cont,
         state
       )
 
