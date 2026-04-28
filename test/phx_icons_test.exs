@@ -51,6 +51,42 @@ defmodule PhxIconsTest do
       PhxIcons.Downloader.ensure_icons("heroicons", ["heart"], icons_dir)
       assert File.exists?(PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "heart"))
     end
+
+    test "ensure_icons downloads icons referenced in on-disk source files" do
+      tag = System.unique_integer([:positive])
+      root = Path.join(System.tmp_dir!(), "phx_icons_root_#{tag}")
+      icons_dir = Path.join(System.tmp_dir!(), "phx_icons_dir_#{tag}")
+      File.mkdir_p!(Path.join(root, "lib"))
+      File.write!(Path.join([root, "lib", "page.heex"]), ~s[<.icon name="heroicons:bell" class="size-6" />])
+
+      bell_path = PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "bell")
+      refute File.exists?(bell_path)
+
+      PhxIcons.Compiler.ensure_icons(icons_dir, root: root)
+
+      assert File.exists?(bell_path)
+    end
+
+    test "ensure_icons picks up icons added to existing files between calls" do
+      tag = System.unique_integer([:positive])
+      root = Path.join(System.tmp_dir!(), "phx_icons_root_#{tag}")
+      icons_dir = Path.join(System.tmp_dir!(), "phx_icons_dir_#{tag}")
+      heex_path = Path.join([root, "lib", "page.heex"])
+      File.mkdir_p!(Path.join(root, "lib"))
+      File.write!(heex_path, ~s[<.icon name="heroicons:heart" class="size-6" />])
+
+      PhxIcons.Compiler.ensure_icons(icons_dir, root: root)
+      assert File.exists?(PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "heart"))
+      refute File.exists?(PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "star"))
+
+      File.write!(heex_path, ~s[
+        <.icon name="heroicons:heart" class="size-6" />
+        <.icon name="heroicons:star" class="size-6" />
+      ])
+
+      PhxIcons.Compiler.ensure_icons(icons_dir, root: root)
+      assert File.exists?(PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "star"))
+    end
   end
 
   describe "HEEx scanning" do

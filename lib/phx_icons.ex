@@ -45,8 +45,11 @@ defmodule PhxIcons do
     recompile =
       quote do
         def __mix_recompile__? do
+          icons_dir = unquote(icons_dir)
+          PhxIcons.Compiler.ensure_icons(icons_dir)
+
           svgs =
-            unquote(icons_dir)
+            icons_dir
             |> Path.join("*/*.svg")
             |> Path.wildcard()
             |> Enum.sort()
