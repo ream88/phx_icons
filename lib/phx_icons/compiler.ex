@@ -3,7 +3,18 @@ defmodule PhxIcons.Compiler do
 
   alias Phoenix.LiveView.Tokenizer
 
-  def ensure_icons(icons_dir) do
+  @initial_cont (case Application.spec(:phoenix_live_view, :vsn) do
+                   nil ->
+                     {:text, :enabled}
+
+                   vsn ->
+                     if Version.match?(List.to_string(vsn), "~> 0.20"),
+                       do: :text,
+                       else: {:text, :enabled}
+                 end)
+
+  def ensure_icons(icons_dir, opts \\ []) do
+    root = Keyword.get_lazy(opts, :root, &project_root/0)
     providers = Application.get_env(:phx_icons, :providers, %{})
 
     providers
@@ -40,7 +51,7 @@ defmodule PhxIcons.Compiler do
 
     if MapSet.size(scan_keys) > 0 do
       scan_keys
-      |> scan_icon_refs()
+      |> scan_icon_refs(root)
       |> Enum.group_by(fn {provider, _} -> provider end, fn {_, icon} -> icon end)
       |> Task.async_stream(
         fn {provider, icons} ->
@@ -54,8 +65,9 @@ defmodule PhxIcons.Compiler do
     :ok
   end
 
-  defp scan_icon_refs(provider_keys) do
-    source_files()
+  defp scan_icon_refs(provider_keys, root) do
+    root
+    |> source_files()
     |> Enum.flat_map(fn path ->
       content = File.read!(path)
 
@@ -123,7 +135,7 @@ defmodule PhxIcons.Compiler do
         text,
         [line: 1, column: 1],
         [],
-        {:text, :enabled},
+        @initial_cont,
         state
       )
 
@@ -193,8 +205,7 @@ defmodule PhxIcons.Compiler do
     end
   end
 
-  defp source_files do
-    root = project_root()
+  defp source_files(root) do
     icons_lib = Path.expand("../../lib", __DIR__)
 
     root
