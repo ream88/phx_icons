@@ -1,7 +1,7 @@
 defmodule PhxIcons.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.1.1"
   @source_url "https://github.com/ream88/phx_icons"
 
   def project do
@@ -39,7 +39,7 @@ defmodule PhxIcons.MixProject do
       maintainers: ["Mario Uher"],
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
-      files: ~w(lib priv/icons/.gitkeep .formatter.exs mix.exs README.md LICENSE)
+      files: ~w(lib priv/icons/.gitkeep .formatter.exs mix.exs README.md CHANGELOG.md LICENSE)
     ]
   end
 

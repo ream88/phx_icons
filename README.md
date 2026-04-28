@@ -11,7 +11,7 @@ required.
 
 ```elixir
 def deps do
-  [{:phx_icons, "~> 0.1.0"}]
+  [{:phx_icons, "~> 0.1.1"}]
 end
 ```
 
