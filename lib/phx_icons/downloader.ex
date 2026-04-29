@@ -103,7 +103,75 @@ defmodule PhxIcons.Downloader do
     match?({:ok, _}, :zip.list_dir(String.to_charlist(path)))
   end
 
+  @max_attempts 3
+  @default_backoff_base_ms 500
+
   defp download!(url, dest) do
+    case fetch_with_retries(url) do
+      {:ok, body} ->
+        tmp_dest = dest <> ".#{System.unique_integer([:positive])}.part"
+        File.write!(tmp_dest, body)
+
+        if valid_zip?(tmp_dest) do
+          File.rename!(tmp_dest, dest)
+        else
+          File.rm(tmp_dest)
+          raise "phx_icons: downloaded file from #{url} is not a valid zip archive"
+        end
+
+      {:error, message} ->
+        raise message
+    end
+  end
+
+  defp fetch_with_retries(url) do
+    max_attempts = Application.get_env(:phx_icons, :max_attempts, @max_attempts)
+    do_fetch(url, 1, max_attempts)
+  end
+
+  defp do_fetch(url, attempt, max_attempts) do
+    case http_request(url) do
+      {:ok, 200, body} ->
+        {:ok, body}
+
+      {:ok, status, _body} when status == 408 or status == 429 or status in 500..599 ->
+        retry_or_fail(url, attempt, max_attempts, "HTTP #{status}")
+
+      {:ok, status, _body} ->
+        {:error, "phx_icons: failed to download #{url} (HTTP #{status})"}
+
+      {:error, reason} ->
+        retry_or_fail(url, attempt, max_attempts, inspect(reason))
+    end
+  end
+
+  defp retry_or_fail(url, attempt, max_attempts, detail) do
+    if attempt < max_attempts do
+      backoff(attempt)
+      do_fetch(url, attempt + 1, max_attempts)
+    else
+      {:error, "phx_icons: failed to download #{url} after #{attempt} attempts (#{detail})"}
+    end
+  end
+
+  defp backoff(attempt) do
+    base_ms = Application.get_env(:phx_icons, :backoff_base_ms, @default_backoff_base_ms)
+
+    if base_ms > 0 do
+      delay = trunc(:math.pow(2, attempt - 1) * base_ms)
+      jitter = :rand.uniform(max(div(delay, 4), 1))
+      Process.sleep(delay + jitter)
+    end
+  end
+
+  defp http_request(url) do
+    case Application.get_env(:phx_icons, :http_client) do
+      nil -> default_http_request(url)
+      fun when is_function(fun, 1) -> fun.(url)
+    end
+  end
+
+  defp default_http_request(url) do
     :ssl.start()
     :inets.start()
 
@@ -120,24 +188,9 @@ defmodule PhxIcons.Downloader do
       timeout: 120_000
     ]
 
-    tmp_dest = dest <> ".#{System.unique_integer([:positive])}.part"
-
     case :httpc.request(:get, {String.to_charlist(url), []}, http_opts, body_format: :binary) do
-      {:ok, {{_, 200, _}, _headers, body}} ->
-        File.write!(tmp_dest, body)
-
-        if valid_zip?(tmp_dest) do
-          File.rename!(tmp_dest, dest)
-        else
-          File.rm(tmp_dest)
-          raise "phx_icons: downloaded file from #{url} is not a valid zip archive"
-        end
-
-      {:ok, {{_, status, _}, _, _}} ->
-        raise "phx_icons: failed to download #{url} (HTTP #{status})"
-
-      {:error, reason} ->
-        raise "phx_icons: failed to download #{url} (#{inspect(reason)})"
+      {:ok, {{_, status, _}, _headers, body}} -> {:ok, status, body}
+      {:error, reason} -> {:error, reason}
     end
   end
 
