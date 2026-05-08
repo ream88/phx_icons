@@ -4,11 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## Unreleased
+## [0.2.0] - 2026-05-08
 
 ### Added
 
 - Added `download: {:also, icons}` provider config to download extra configured icons in addition to icons discovered in source files.
+
+### Changed
+
+- Icon downloads now retry on transient failures (HTTP 408, 429, 5xx, and connection errors) with exponential backoff and jitter. Retry count and backoff base are configurable via the `:max_attempts` and `:backoff_base_ms` application env keys.
 
 ## [0.1.1] - 2026-04-28
 
