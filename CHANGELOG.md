@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## Unreleased
+
+### Added
+
+- Added `download: {:also, icons}` provider config to download extra configured icons in addition to icons discovered in source files.
+
 ## [0.1.1] - 2026-04-28
 
 ### Added
