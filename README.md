@@ -65,7 +65,7 @@ config :phx_icons,
   }
 ```
 
-You can also pre-download all icons from a provider or a specific list:
+You can also pre-download all icons from a provider, a specific list, or extra icons in addition to the icons discovered in your codebase:
 
 ```elixir
 config :phx_icons,
@@ -73,7 +73,9 @@ config :phx_icons,
     # Download all icons upfront
     "heroicons" => {PhxIcons.Providers.Heroicons, "2.2.0", download: :all},
     # Download a specific set
-    "lucide" => {PhxIcons.Providers.Lucide, "0.469.0", download: ~w(search check x)}
+    "lucide" => {PhxIcons.Providers.Lucide, "0.469.0", download: ~w(search check x)},
+    # Download discovered icons plus these extra icons
+    "tabler" => {PhxIcons.Providers.Tabler, "3.41.1", download: {:also, ~w(settings user)}}
   }
 ```
 

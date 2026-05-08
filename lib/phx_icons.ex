@@ -36,7 +36,7 @@ defmodule PhxIcons do
     fallback =
       quote do
         def icon(%{name: name}) do
-          raise "unknown icon #{name}. Configure the provider with download: :all or a list."
+          raise "unknown icon #{name}. Configure the provider with download: :all, {:also, list}, or a list."
         end
       end
 
