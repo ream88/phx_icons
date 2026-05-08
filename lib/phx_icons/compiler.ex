@@ -26,10 +26,10 @@ defmodule PhxIcons.Compiler do
             _ -> []
           end
 
-        case Keyword.get(opts, :download) do
+        case download_icons(Keyword.get(opts, :download)) do
           :all -> PhxIcons.Downloader.ensure_all(key, icons_dir)
-          icons when is_list(icons) -> PhxIcons.Downloader.ensure_icons(key, icons, icons_dir)
-          _ -> :ok
+          {:icons, icons} -> PhxIcons.Downloader.ensure_icons(key, icons, icons_dir)
+          :none -> :ok
         end
       end,
       timeout: :infinity
@@ -64,6 +64,22 @@ defmodule PhxIcons.Compiler do
 
     :ok
   end
+
+  defp download_icons(:all), do: :all
+  defp download_icons({:also, icons}) when is_list(icons), do: {:icons, icons}
+
+  defp download_icons(download) when is_list(download) do
+    if Keyword.keyword?(download) do
+      case Keyword.fetch(download, :also) do
+        {:ok, icons} when is_list(icons) -> {:icons, icons}
+        _ -> {:icons, download}
+      end
+    else
+      {:icons, download}
+    end
+  end
+
+  defp download_icons(_), do: :none
 
   defp scan_icon_refs(provider_keys, root) do
     root

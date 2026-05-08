@@ -5,6 +5,15 @@ defmodule PhxIcons.DownloaderTest do
 
   @svg ~s|<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M1 2"/></svg>|
 
+  defmodule TestHeroicons do
+    @moduledoc false
+    def release_url(_version), do: "https://example.com/test-heroicons.zip"
+
+    def svg_path(version, name, _opts) do
+      "heroicons-#{version}/optimized/24/outline/#{name}.svg"
+    end
+  end
+
   setup do
     {:ok, {_, zip_bytes}} =
       :zip.create(
@@ -19,15 +28,19 @@ defmodule PhxIcons.DownloaderTest do
 
     Application.put_env(:phx_icons, :backoff_base_ms, 0)
 
-    cached_zip = Path.join([System.tmp_dir!(), "icons", "heroicons-2.2.0.zip"])
-    File.rm_rf!(cached_zip)
+    cached_zips = [
+      Path.join([System.tmp_dir!(), "icons", "heroicons-2.2.0.zip"]),
+      Path.join([System.tmp_dir!(), "icons", "test_heroicons-2.2.0.zip"])
+    ]
+
+    Enum.each(cached_zips, &File.rm_rf!/1)
 
     icons_dir = Path.join(System.tmp_dir!(), "phx_icons_dl_test_#{System.unique_integer([:positive])}")
 
     on_exit(fn ->
       Application.delete_env(:phx_icons, :http_client)
       Application.delete_env(:phx_icons, :backoff_base_ms)
-      File.rm_rf!(cached_zip)
+      Enum.each(cached_zips, &File.rm_rf!/1)
       File.rm_rf!(icons_dir)
     end)
 
@@ -143,5 +156,36 @@ defmodule PhxIcons.DownloaderTest do
     assert_raise RuntimeError, ~r/not a valid zip archive/, fn ->
       Downloader.ensure_icons("heroicons", ["heart"], dir)
     end
+  end
+
+  test "download also ensures configured icons and scanned source icons", %{icons_dir: dir} do
+    root = Path.join(System.tmp_dir!(), "phx_icons_compiler_root_#{System.unique_integer([:positive])}")
+    File.mkdir_p!(Path.join(root, "lib"))
+    File.write!(Path.join([root, "lib", "page.heex"]), ~s[<.icon name="heroicons:bell" />])
+
+    Application.put_env(:phx_icons, :providers, %{
+      "heroicons" => {TestHeroicons, "2.2.0", download: {:also, ["search"]}}
+    })
+
+    Application.put_env(:phx_icons, :http_client, fn _url ->
+      {:ok, 200, zip_bytes!(~w(bell search))}
+    end)
+
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    PhxIcons.Compiler.ensure_icons(dir, root: root)
+
+    assert File.exists?(Downloader.icon_path(dir, "heroicons", "bell"))
+    assert File.exists?(Downloader.icon_path(dir, "heroicons", "search"))
+  end
+
+  defp zip_bytes!(names) do
+    files =
+      Enum.map(names, fn name ->
+        {~c"heroicons-2.2.0/optimized/24/outline/#{name}.svg", @svg}
+      end)
+
+    {:ok, {_, zip_bytes}} = :zip.create(~c"icons.zip", files, [:memory])
+    zip_bytes
   end
 end
