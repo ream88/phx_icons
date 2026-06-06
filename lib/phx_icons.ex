@@ -6,6 +6,8 @@ defmodule PhxIcons do
 
   use Phoenix.Component
 
+  require Logger
+
   defmacro __using__(_opts) do
     icons_dir = Path.join(Mix.Project.build_path(), "icons")
     PhxIcons.Compiler.ensure_icons(icons_dir)
@@ -35,8 +37,8 @@ defmodule PhxIcons do
 
     fallback =
       quote do
-        def icon(%{name: name}) do
-          raise "unknown icon #{name}. Configure the provider with download: :all, {:also, list}, or a list."
+        def icon(%{name: _name} = assigns) do
+          PhxIcons.__unknown_icon__(unquote(Mix.env()), unquote(icons_dir), assigns)
         end
       end
 
@@ -67,6 +69,57 @@ defmodule PhxIcons do
       unquote(fallback)
       unquote(recompile)
     end
+  end
+
+  @doc false
+  # In :dev, an unreferenced icon is downloaded on demand so it renders, but a
+  # warning nudges the developer to reference it (or add it to :download) and
+  # recompile — otherwise it won't ship. Every other env raises, just as before.
+  def __unknown_icon__(:dev, icons_dir, %{name: name} = assigns) do
+    case download_icon(name, icons_dir) do
+      {:ok, svg} ->
+        Logger.warning("""
+        phx_icons: icon #{name} was fetched at runtime because it wasn't downloaded at compile time.
+
+        Reference it statically (e.g. <.icon name="#{name}" />) or add it to the provider's \
+        :download config, then recompile so it's available in production.\
+        """)
+
+        assigns =
+          assigns
+          |> Phoenix.Component.assign(:svg_attrs, svg.attrs)
+          |> Phoenix.Component.assign(:inner, svg.inner)
+
+        __render_svg__(assigns)
+
+      :error ->
+        raise unknown_icon_message(name)
+    end
+  end
+
+  def __unknown_icon__(_env, _icons_dir, %{name: name}) do
+    raise unknown_icon_message(name)
+  end
+
+  defp unknown_icon_message(name) do
+    "unknown icon #{name}. Configure the provider with download: :all, {:also, list}, or a list."
+  end
+
+  defp download_icon(name, icons_dir) do
+    with [provider, icon] when icon != "" <- String.split(name, ":", parts: 2),
+         :ok <- safe_ensure_icon(provider, icon, icons_dir),
+         path = PhxIcons.Downloader.icon_path(icons_dir, provider, icon),
+         true <- File.exists?(path) do
+      {:ok, PhxIcons.SVG.parse(File.read!(path))}
+    else
+      _ -> :error
+    end
+  end
+
+  defp safe_ensure_icon(provider, icon, icons_dir) do
+    PhxIcons.Downloader.ensure_icons(provider, [icon], icons_dir)
+  rescue
+    _ -> :error
   end
 
   @doc false

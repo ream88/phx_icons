@@ -185,6 +185,48 @@ defmodule PhxIconsTest do
     end
   end
 
+  describe "unknown icons" do
+    import ExUnit.CaptureLog
+    import Phoenix.LiveViewTest, only: [rendered_to_string: 1]
+
+    setup do
+      icons_dir = Path.join(System.tmp_dir!(), "phx_icons_unknown_#{System.unique_integer([:positive])}")
+      %{icons_dir: icons_dir}
+    end
+
+    test "in :dev, downloads the icon at runtime and warns", %{icons_dir: icons_dir} do
+      assigns = %{name: "heroicons:beaker", class: nil, rest: %{}, __changed__: nil}
+      refute File.exists?(PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "beaker"))
+
+      log =
+        capture_log(fn ->
+          rendered = rendered_to_string(PhxIcons.__unknown_icon__(:dev, icons_dir, assigns))
+          send(self(), {:rendered, rendered})
+        end)
+
+      assert_received {:rendered, rendered}
+      assert rendered =~ "<svg"
+      assert log =~ "heroicons:beaker was fetched at runtime"
+      assert File.exists?(PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "beaker"))
+    end
+
+    test "in :prod, raises the configuration error", %{icons_dir: icons_dir} do
+      assigns = %{name: "heroicons:beaker", class: nil, rest: %{}, __changed__: nil}
+
+      assert_raise RuntimeError, ~r/unknown icon heroicons:beaker/, fn ->
+        PhxIcons.__unknown_icon__(:prod, icons_dir, assigns)
+      end
+    end
+
+    test "in :dev, raises when the icon genuinely doesn't exist", %{icons_dir: icons_dir} do
+      assigns = %{name: "heroicons:definitely-not-an-icon", class: nil, rest: %{}, __changed__: nil}
+
+      assert_raise RuntimeError, ~r/unknown icon heroicons:definitely-not-an-icon/, fn ->
+        PhxIcons.__unknown_icon__(:dev, icons_dir, assigns)
+      end
+    end
+  end
+
   describe "test helpers" do
     import PhxIcons.Test
 
