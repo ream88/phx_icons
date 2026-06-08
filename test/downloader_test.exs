@@ -179,6 +179,26 @@ defmodule PhxIcons.DownloaderTest do
     assert File.exists?(Downloader.icon_path(dir, "heroicons", "search"))
   end
 
+  test "ensure_all fills in icons missing from an existing subset", %{icons_dir: dir} do
+    Application.put_env(:phx_icons, :providers, %{
+      "heroicons" => {TestHeroicons, "2.2.0", download: :all}
+    })
+
+    Application.put_env(:phx_icons, :http_client, fn _url ->
+      {:ok, 200, zip_bytes!(~w(bell heart search))}
+    end)
+
+    Downloader.ensure_icons("heroicons", ["heart"], dir)
+    assert File.exists?(Downloader.icon_path(dir, "heroicons", "heart"))
+    refute File.exists?(Downloader.icon_path(dir, "heroicons", "bell"))
+
+    Downloader.ensure_all("heroicons", dir)
+
+    for name <- ~w(bell heart search) do
+      assert File.exists?(Downloader.icon_path(dir, "heroicons", name))
+    end
+  end
+
   defp zip_bytes!(names) do
     files =
       Enum.map(names, fn name ->

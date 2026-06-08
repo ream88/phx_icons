@@ -43,6 +43,7 @@ defmodule PhxIcons do
       end
 
     svgs_hash = :erlang.md5(:erlang.term_to_binary(icon_paths))
+    providers_hash = providers_hash()
 
     recompile =
       quote do
@@ -56,7 +57,11 @@ defmodule PhxIcons do
             |> Path.wildcard()
             |> Enum.sort()
 
-          :erlang.md5(:erlang.term_to_binary(svgs)) != unquote(svgs_hash)
+          # `:providers` is read with Application.get_env (not compile_env), so
+          # the compiler doesn't track it — hash it ourselves to recompile when
+          # the icon config changes even if the on-disk set is unaffected.
+          :erlang.md5(:erlang.term_to_binary(svgs)) != unquote(svgs_hash) or
+            PhxIcons.providers_hash() != unquote(providers_hash)
         end
       end
 
@@ -69,6 +74,11 @@ defmodule PhxIcons do
       unquote(fallback)
       unquote(recompile)
     end
+  end
+
+  @doc false
+  def providers_hash do
+    :erlang.md5(:erlang.term_to_binary(Application.get_env(:phx_icons, :providers, %{})))
   end
 
   @doc false

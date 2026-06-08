@@ -35,47 +35,57 @@ defmodule PhxIcons.Downloader do
     zip_path = ensure_downloaded(module, version)
     dest_dir = Path.join(icons_dir, to_string(provider_key))
 
-    if File.exists?(dest_dir) && File.ls!(dest_dir) != [] do
-      :ok
-    else
-      folder = version |> module.svg_path("__dummy__", opts) |> Path.dirname()
-      folder_prefix = String.to_charlist(folder <> "/")
+    folder = version |> module.svg_path("__dummy__", opts) |> Path.dirname()
+    folder_prefix = to_string(folder) <> "/"
 
-      {:ok, files} = :zip.list_dir(String.to_charlist(zip_path))
+    {:ok, files} = :zip.list_dir(String.to_charlist(zip_path))
 
-      svgs =
-        files
-        |> Enum.filter(fn
-          {:zip_file, name, _, _, _, _} ->
-            name_str = to_string(name)
-            String.starts_with?(name_str, to_string(folder_prefix)) && String.ends_with?(name_str, ".svg")
+    # Extract only icons not already on disk so a switch from a subset (e.g.
+    # `{:also, …}`) to `:all` fills in the rest, instead of seeing a non-empty
+    # dir and skipping — which would leave the configured set incomplete.
+    missing =
+      files
+      |> Enum.filter(fn
+        {:zip_file, name, _, _, _, _} ->
+          name_str = to_string(name)
+          String.starts_with?(name_str, folder_prefix) && String.ends_with?(name_str, ".svg")
 
-          _ ->
-            false
-        end)
-        |> Enum.map(fn {:zip_file, name, _, _, _, _} -> name end)
+        _ ->
+          false
+      end)
+      |> Enum.map(fn {:zip_file, name, _, _, _, _} -> name end)
+      |> Enum.reject(fn name ->
+        File.exists?(Path.join(dest_dir, "#{icon_name_from_zip(name)}.svg"))
+      end)
 
-      File.mkdir_p!(dest_dir)
+    File.mkdir_p!(dest_dir)
 
-      case :zip.extract(String.to_charlist(zip_path), [{:file_list, svgs}, :memory]) do
+    if missing != [] do
+      case :zip.extract(String.to_charlist(zip_path), [{:file_list, missing}, :memory]) do
         {:ok, extracted} ->
           for {name, content} <- extracted do
-            icon_name = name |> to_string() |> Path.basename(".svg") |> String.downcase()
-            File.write!(Path.join(dest_dir, "#{icon_name}.svg"), content)
-          end
-
-          for {alias_name, source_name} <- Keyword.get(opts, :aliases, %{}) do
-            source = Path.join(dest_dir, "#{source_name}.svg")
-            dest = Path.join(dest_dir, "#{alias_name}.svg")
-            if File.exists?(source) && !File.exists?(dest), do: File.cp!(source, dest)
+            File.write!(Path.join(dest_dir, "#{icon_name_from_zip(name)}.svg"), content)
           end
 
         {:error, reason} ->
           raise "phx_icons: failed to extract all from #{provider_key} (#{inspect(reason)})"
       end
-
-      :ok
     end
+
+    for {alias_name, source_name} <- Keyword.get(opts, :aliases, %{}) do
+      source = Path.join(dest_dir, "#{source_name}.svg")
+      dest = Path.join(dest_dir, "#{alias_name}.svg")
+      if File.exists?(source) && !File.exists?(dest), do: File.cp!(source, dest)
+    end
+
+    :ok
+  end
+
+  defp icon_name_from_zip(name) do
+    name
+    |> to_string()
+    |> Path.basename(".svg")
+    |> String.downcase()
   end
 
   def icon_path(icons_dir, provider_key, icon_name) do
