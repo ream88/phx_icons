@@ -167,14 +167,20 @@ defmodule PhxIcons.Compiler do
     extract_name_attr(attrs, provider_keys)
   end
 
-  # <Module.icon name="heroicons:heart" /> — remote icon component call
-  defp extract_refs_from_token({:remote_component, {_mod, "icon"}, attrs, _meta}, provider_keys) do
-    extract_name_attr(attrs, provider_keys)
+  # <Module.icon name="heroicons:heart" /> — remote icon component call. The
+  # tokenizer emits the tag name as a plain string ("Some.Module.icon"), so match
+  # the trailing ".icon" segment rather than a {module, function} tuple.
+  defp extract_refs_from_token({:remote_component, name, attrs, _meta}, provider_keys)
+       when is_binary(name) do
+    if String.ends_with?(name, ".icon") do
+      extract_name_attr(attrs, provider_keys)
+    else
+      extract_icon_attr(attrs, provider_keys)
+    end
   end
 
-  # Any component with an "icon" attribute, e.g. <.empty icon="heroicons:inbox">
-  defp extract_refs_from_token({type, _name, attrs, _meta}, provider_keys)
-       when type in [:local_component, :remote_component] do
+  # Any other component with an "icon" attribute, e.g. <.empty icon="heroicons:inbox">
+  defp extract_refs_from_token({:local_component, _name, attrs, _meta}, provider_keys) do
     extract_icon_attr(attrs, provider_keys)
   end
 

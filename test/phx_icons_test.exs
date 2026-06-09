@@ -67,6 +67,25 @@ defmodule PhxIconsTest do
       assert File.exists?(bell_path)
     end
 
+    test "ensure_icons downloads icons referenced via a remote component call" do
+      tag = System.unique_integer([:positive])
+      root = Path.join(System.tmp_dir!(), "phx_icons_root_#{tag}")
+      icons_dir = Path.join(System.tmp_dir!(), "phx_icons_dir_#{tag}")
+      File.mkdir_p!(Path.join(root, "lib"))
+
+      File.write!(
+        Path.join([root, "lib", "page.heex"]),
+        ~s[<MyApp.Icons.icon name="heroicons:bell" class="size-6" />]
+      )
+
+      bell_path = PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "bell")
+      refute File.exists?(bell_path)
+
+      PhxIcons.Compiler.ensure_icons(icons_dir, root: root)
+
+      assert File.exists?(bell_path)
+    end
+
     test "ensure_icons picks up icons added to existing files between calls" do
       tag = System.unique_integer([:positive])
       root = Path.join(System.tmp_dir!(), "phx_icons_root_#{tag}")
