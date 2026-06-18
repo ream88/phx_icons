@@ -38,7 +38,11 @@ defmodule PhxIcons.MixProject do
     [
       maintainers: ["Mario Uher"],
       licenses: ["MIT"],
-      links: %{"GitHub" => @source_url},
+      links: %{
+        "GitHub" => @source_url,
+        "Demo" => "https://phx-icons-demo.fly.dev",
+        "Demo source" => "https://github.com/ream88/phx_icons_demo"
+      },
       files: ~w(lib priv/icons/.gitkeep .formatter.exs mix.exs README.md CHANGELOG.md LICENSE)
     ]
   end
