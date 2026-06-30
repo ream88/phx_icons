@@ -1,7 +1,12 @@
 defmodule PhxIcons.Compiler do
   @moduledoc false
 
-  alias Phoenix.LiveView.Tokenizer
+  # The HEEx tokenizer moved from `Phoenix.LiveView.Tokenizer` to
+  # `Phoenix.LiveView.TagEngine.Tokenizer` in LiveView 1.2 (same API). Resolve
+  # whichever is present so discovery keeps working across 0.20–1.2+.
+  @tokenizer (if Code.ensure_loaded?(Phoenix.LiveView.TagEngine.Tokenizer),
+                do: Phoenix.LiveView.TagEngine.Tokenizer,
+                else: Phoenix.LiveView.Tokenizer)
 
   @initial_cont (case Application.spec(:phoenix_live_view, :vsn) do
                    nil ->
@@ -144,10 +149,10 @@ defmodule PhxIcons.Compiler do
   end
 
   defp tokenize_heex(text, provider_keys) do
-    state = Tokenizer.init(0, "nofile", text, Phoenix.LiveView.HTMLEngine)
+    state = @tokenizer.init(0, "nofile", text, Phoenix.LiveView.HTMLEngine)
 
     {tokens, cont} =
-      Tokenizer.tokenize(
+      @tokenizer.tokenize(
         text,
         [line: 1, column: 1],
         [],
@@ -155,7 +160,7 @@ defmodule PhxIcons.Compiler do
         state
       )
 
-    tokens = Tokenizer.finalize(tokens, "nofile", cont, text)
+    tokens = @tokenizer.finalize(tokens, "nofile", cont, text)
 
     Enum.flat_map(tokens, &extract_refs_from_token(&1, provider_keys))
   rescue

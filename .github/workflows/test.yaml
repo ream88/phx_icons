@@ -15,27 +15,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
+        elixir: ["1.18", "1.19"]
+        otp: ["27", "28"]
+        phoenix_live_view_version: ["0.20.0", "1.0.0", "1.1.0", "1.2.0"]
+        exclude:
+          # Elixir 1.18 is only tested on OTP 27.
           - elixir: "1.18"
-            otp: "27"
-            phoenix_live_view_version: "1.1.0"
-          - elixir: "1.18"
-            otp: "27"
-            phoenix_live_view_version: "0.20.0"
-
-          - elixir: "1.19"
-            otp: "27"
-            phoenix_live_view_version: "1.1.0"
-          - elixir: "1.19"
-            otp: "27"
-            phoenix_live_view_version: "0.20.0"
-
-          - elixir: "1.19"
             otp: "28"
-            phoenix_live_view_version: "1.1.0"
-          - elixir: "1.19"
-            otp: "28"
-            phoenix_live_view_version: "0.20.0"
 
     steps:
       - uses: actions/checkout@v4

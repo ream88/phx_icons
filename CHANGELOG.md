@@ -8,6 +8,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Fixed
 
+- Support Phoenix LiveView `1.2+` (the HEEx tokenizer module was renamed).
 - Icon references in remote component calls (e.g. `<MyApp.Icons.icon name="heroicons:bell" />`) are now discovered. The tokenizer emits the tag name as a plain string, so the previous `{module, function}` tuple match never fired and these calls were silently skipped at compile time — leaving the icons undownloaded in production.
 - `download: :all` now fills in icons missing from an existing on-disk set instead of skipping when the directory is non-empty, so switching a provider from a subset (e.g. `{:also, …}`) to `:all` downloads the rest — including with a warm `_build/` cache.
 - `__mix_recompile__?/0` now also recompiles when the `:providers` config changes, even if the on-disk icon set is unaffected (the config is read with `Application.get_env`, which the compiler can't track).
