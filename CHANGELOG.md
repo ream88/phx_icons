@@ -6,6 +6,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-30
+
 ### Fixed
 
 - Support Phoenix LiveView `1.2+` (the HEEx tokenizer module was renamed).
