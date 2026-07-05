@@ -23,7 +23,7 @@ defmodule PhxIcons.Downloader do
 
       Enum.each(missing, fn name ->
         svg_path = module.svg_path(version, name, opts)
-        extract_icon(zip_path, svg_path, name, icons_dir, provider_key)
+        extract_icon(zip_path, svg_path, name, icons_dir, provider_key, module)
       end)
     end
 
@@ -64,7 +64,7 @@ defmodule PhxIcons.Downloader do
       case :zip.extract(String.to_charlist(zip_path), [{:file_list, missing}, :memory]) do
         {:ok, extracted} ->
           for {name, content} <- extracted do
-            File.write!(Path.join(dest_dir, "#{icon_name_from_zip(name)}.svg"), content)
+            File.write!(Path.join(dest_dir, "#{icon_name_from_zip(name)}.svg"), transform(module, content))
           end
 
         {:error, reason} ->
@@ -204,14 +204,14 @@ defmodule PhxIcons.Downloader do
     end
   end
 
-  defp extract_icon(zip_path, svg_path, icon_name, icons_dir, provider_key) do
+  defp extract_icon(zip_path, svg_path, icon_name, icons_dir, provider_key, module) do
     file_in_zip = String.to_charlist(svg_path)
     dest_dir = Path.join(icons_dir, to_string(provider_key))
     File.mkdir_p!(dest_dir)
 
     case :zip.extract(String.to_charlist(zip_path), [{:file_list, [file_in_zip]}, :memory]) do
       {:ok, [{_, content}]} ->
-        File.write!(Path.join(dest_dir, "#{icon_name}.svg"), content)
+        File.write!(Path.join(dest_dir, "#{icon_name}.svg"), transform(module, content))
 
       {:ok, []} ->
         raise "phx_icons: #{provider_key}:#{icon_name} not found in archive (looked for #{file_in_zip})"
@@ -219,6 +219,10 @@ defmodule PhxIcons.Downloader do
       {:error, reason} ->
         raise "phx_icons: failed to extract #{icon_name} (#{inspect(reason)})"
     end
+  end
+
+  defp transform(module, content) do
+    if function_exported?(module, :transform, 1), do: module.transform(content), else: content
   end
 
   def provider_config!(provider_key) do

@@ -199,6 +199,24 @@ defmodule PhxIcons.DownloaderTest do
     end
   end
 
+  test "applies the provider's transform/1 to extracted icons", %{icons_dir: dir} do
+    svg = ~s|<svg viewBox="0 0 24 24"><path d="M1 2" fill="#000000"/></svg>|
+    {:ok, {_, zip}} = :zip.create(~c"icons.zip", [{~c"outline/heart.svg", svg}], [:memory])
+
+    Application.put_env(:phx_icons, :providers, %{
+      "reicon" => {PhxIcons.Providers.Reicon, "test-sha"}
+    })
+
+    Application.put_env(:phx_icons, :http_client, fn _url -> {:ok, 200, zip} end)
+    on_exit(fn -> File.rm_rf!(Path.join([System.tmp_dir!(), "icons", "reicon-test-sha.zip"])) end)
+
+    Downloader.ensure_icons("reicon", ["heart"], dir)
+
+    content = File.read!(Downloader.icon_path(dir, "reicon", "heart"))
+    assert content =~ ~s(fill="currentColor")
+    refute content =~ "#000000"
+  end
+
   defp zip_bytes!(names) do
     files =
       Enum.map(names, fn name ->

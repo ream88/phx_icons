@@ -61,7 +61,10 @@ config :phx_icons,
     "phosphor" => {PhxIcons.Providers.Phosphor, "2.0.8"},
     "simple-icons" => {PhxIcons.Providers.SimpleIcons, "16.16.0"},
     "flagpack" => {PhxIcons.Providers.Flagpack, "2.1.0"},
-    "lineicons" => {PhxIcons.Providers.Lineicons, "5.0"}
+    "lineicons" => {PhxIcons.Providers.Lineicons, "5.0"},
+    # Reicon has no versioned release assets, so pin a git commit SHA (or use "main")
+    "reicon" => {PhxIcons.Providers.Reicon, "b5eb77801d65f2754d2fbd3837b979be6a4f26d3"},
+    "reicon-filled" => {PhxIcons.Providers.Reicon, "b5eb77801d65f2754d2fbd3837b979be6a4f26d3", style: "filled"}
   }
 ```
 
@@ -90,6 +93,7 @@ config :phx_icons,
 | [Simple Icons](https://simpleicons.org) | `simple-icons` | brand logos |
 | [Flagpack](https://flagpack.xyz) | `flagpack` | country flags |
 | [Lineicons](https://lineicons.com) | `lineicons` | single style |
+| [Reicon](https://reicon.dev) | `reicon` | outline (default), `-filled` |
 
 ```heex
 <.icon name="heroicons:heart" class="size-6" />
@@ -102,6 +106,8 @@ config :phx_icons,
 <.icon name="simple-icons:github" class="size-6 fill-current" />
 <.icon name="flagpack:us" class="h-6 w-auto" />
 <.icon name="lineicons:github" class="size-6" />
+<.icon name="reicon:search" class="size-6" />
+<.icon name="reicon-filled:search" class="size-6" />
 ```
 
 ## Custom providers
@@ -123,6 +129,9 @@ defmodule MyApp.Providers.CustomIcons do
   end
 end
 ```
+
+Optionally implement `transform/1` to rewrite each SVG before it's stored
+(e.g. replacing hardcoded fills with `currentColor`).
 
 Then register it in your config:
 
