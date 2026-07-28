@@ -18,19 +18,19 @@ defmodule PhxIcons.DownloaderTest do
     {:ok, {_, zip_bytes}} =
       :zip.create(
         ~c"icons.zip",
-        [{~c"heroicons-2.2.0/optimized/24/outline/heart.svg", @svg}],
+        [{~c"heroicons-dltest/optimized/24/outline/heart.svg", @svg}],
         [:memory]
       )
 
     Application.put_env(:phx_icons, :providers, %{
-      "heroicons" => {PhxIcons.Providers.Heroicons, "2.2.0"}
+      "heroicons" => {PhxIcons.Providers.Heroicons, "dltest"}
     })
 
     Application.put_env(:phx_icons, :backoff_base_ms, 0)
 
     cached_zips = [
-      Path.join([System.tmp_dir!(), "icons", "heroicons-2.2.0.zip"]),
-      Path.join([System.tmp_dir!(), "icons", "test_heroicons-2.2.0.zip"])
+      Path.join([System.tmp_dir!(), "icons", "heroicons-dltest.zip"]),
+      Path.join([System.tmp_dir!(), "icons", "test_heroicons-dltest.zip"])
     ]
 
     Enum.each(cached_zips, &File.rm_rf!/1)
@@ -164,7 +164,7 @@ defmodule PhxIcons.DownloaderTest do
     File.write!(Path.join([root, "lib", "page.heex"]), ~s[<.icon name="heroicons:bell" />])
 
     Application.put_env(:phx_icons, :providers, %{
-      "heroicons" => {TestHeroicons, "2.2.0", download: {:also, ["search"]}}
+      "heroicons" => {TestHeroicons, "dltest", download: {:also, ["search"]}}
     })
 
     Application.put_env(:phx_icons, :http_client, fn _url ->
@@ -181,7 +181,7 @@ defmodule PhxIcons.DownloaderTest do
 
   test "ensure_all fills in icons missing from an existing subset", %{icons_dir: dir} do
     Application.put_env(:phx_icons, :providers, %{
-      "heroicons" => {TestHeroicons, "2.2.0", download: :all}
+      "heroicons" => {TestHeroicons, "dltest", download: :all}
     })
 
     Application.put_env(:phx_icons, :http_client, fn _url ->
@@ -220,7 +220,7 @@ defmodule PhxIcons.DownloaderTest do
   defp zip_bytes!(names) do
     files =
       Enum.map(names, fn name ->
-        {~c"heroicons-2.2.0/optimized/24/outline/#{name}.svg", @svg}
+        {~c"heroicons-dltest/optimized/24/outline/#{name}.svg", @svg}
       end)
 
     {:ok, {_, zip_bytes}} = :zip.create(~c"icons.zip", files, [:memory])

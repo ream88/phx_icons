@@ -44,3 +44,27 @@ jobs:
       - run: mix deps.get
       - run: mix compile --warnings-as-errors
       - run: mix test
+
+  integration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28"
+          elixir-version: "1.19"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-integration-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            mix-integration-
+
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix test --only network

@@ -3,20 +3,49 @@ defmodule PhxIconsTest do
 
   alias PhxIcons.Providers.Heroicons
 
-  @icons_dir Path.join(System.tmp_dir!(), "phx_icons_test_#{System.unique_integer([:positive])}")
+  @svg ~s|<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M1 2"/></svg>|
+
+  # Version "test" so fixture zips cache as *-test.zip and never collide with
+  # real provider zips cached in $TMPDIR/icons by dev projects. Real providers
+  # are covered by provider_integration_test.exs (mix test --include network).
+  @providers %{"heroicons" => {Heroicons, "test"}}
+
+  # Icons the tests reference. Fixture zips contain exactly these.
+  @fixture_icons %{
+    "heroicons" => ~w(heart bell star check inbox beaker device-phone-mobile)
+  }
 
   setup_all do
-    Application.put_env(:phx_icons, :providers, %{
-      "heroicons" => {Heroicons, "2.2.0"},
-      "heroicons-solid" => {Heroicons, "2.2.0", style: "solid"},
-      "heroicons-mini" => {Heroicons, "2.2.0", style: "mini"},
-      "heroicons-micro" => {Heroicons, "2.2.0", style: "micro"},
-      "lucide" => {PhxIcons.Providers.Lucide, "0.469.0"},
-      "tabler" => {PhxIcons.Providers.Tabler, "3.41.1"},
-      "phosphor" => {PhxIcons.Providers.Phosphor, "2.0.8"},
-      "simple-icons" => {PhxIcons.Providers.SimpleIcons, "16.16.0"},
-      "flagpack" => {PhxIcons.Providers.Flagpack, "2.1.0"}
-    })
+    # Drop stale fixture zips so changes to @fixture_icons take effect.
+    [System.tmp_dir!(), "icons", "*-test.zip"]
+    |> Path.join()
+    |> Path.wildcard()
+    |> Enum.each(&File.rm!/1)
+
+    Application.put_env(:phx_icons, :providers, @providers)
+
+    # Build one in-memory zip per release URL, with entries laid out by the
+    # provider's own svg_path/3 — the same mapping the downloader will use.
+    zips =
+      @providers
+      |> Enum.flat_map(fn {key, config} ->
+        {module, version, opts} =
+          case config do
+            {m, v} -> {m, v, []}
+            {m, v, o} -> {m, v, o}
+          end
+
+        for name <- Map.fetch!(@fixture_icons, key) do
+          {module.release_url(version), {String.to_charlist(module.svg_path(version, name, opts)), @svg}}
+        end
+      end)
+      |> Enum.group_by(fn {url, _} -> url end, fn {_, entry} -> entry end)
+      |> Map.new(fn {url, entries} ->
+        {:ok, {_, bytes}} = :zip.create(~c"icons.zip", Enum.uniq(entries), [:memory])
+        {url, bytes}
+      end)
+
+    Application.put_env(:phx_icons, :http_client, fn url -> {:ok, 200, Map.fetch!(zips, url)} end)
 
     :ok
   end
@@ -293,71 +322,5 @@ defmodule PhxIconsTest do
     test "refute_icon passes for plain text without icons" do
       refute_icon "no icons here", "heroicons:heart"
     end
-  end
-
-  describe "providers" do
-    test "heroicons outline" do
-      PhxIcons.Downloader.ensure_icons("heroicons", ["heart"], @icons_dir)
-      assert_icon_downloaded("heroicons", "heart")
-    end
-
-    test "heroicons solid" do
-      PhxIcons.Downloader.ensure_icons("heroicons-solid", ["heart"], @icons_dir)
-      assert_icon_downloaded("heroicons-solid", "heart")
-    end
-
-    test "heroicons mini" do
-      PhxIcons.Downloader.ensure_icons("heroicons-mini", ["heart"], @icons_dir)
-      assert_icon_downloaded("heroicons-mini", "heart")
-    end
-
-    test "heroicons micro" do
-      PhxIcons.Downloader.ensure_icons("heroicons-micro", ["heart"], @icons_dir)
-      assert_icon_downloaded("heroicons-micro", "heart")
-    end
-
-    test "lucide" do
-      PhxIcons.Downloader.ensure_icons("lucide", ["heart"], @icons_dir)
-      assert_icon_downloaded("lucide", "heart")
-    end
-
-    test "tabler" do
-      PhxIcons.Downloader.ensure_icons("tabler", ["heart"], @icons_dir)
-      assert_icon_downloaded("tabler", "heart")
-    end
-
-    test "tabler filled" do
-      PhxIcons.Downloader.ensure_icons("tabler", ["heart-filled"], @icons_dir)
-      assert_icon_downloaded("tabler", "heart-filled")
-    end
-
-    test "phosphor regular" do
-      PhxIcons.Downloader.ensure_icons("phosphor", ["heart"], @icons_dir)
-      assert_icon_downloaded("phosphor", "heart")
-    end
-
-    test "phosphor duotone" do
-      PhxIcons.Downloader.ensure_icons("phosphor", ["heart-duotone"], @icons_dir)
-      assert_icon_downloaded("phosphor", "heart-duotone")
-    end
-
-    test "simple icons" do
-      PhxIcons.Downloader.ensure_icons("simple-icons", ["github"], @icons_dir)
-      assert_icon_downloaded("simple-icons", "github")
-    end
-
-    test "flagpack" do
-      PhxIcons.Downloader.ensure_icons("flagpack", ["at"], @icons_dir)
-      assert_icon_downloaded("flagpack", "at")
-    end
-  end
-
-  defp assert_icon_downloaded(provider, name) do
-    path = PhxIcons.Downloader.icon_path(@icons_dir, provider, name)
-    assert File.exists?(path), "expected #{path} to exist"
-
-    svg = PhxIcons.SVG.parse(File.read!(path))
-    assert Enum.any?(svg.attrs, fn {k, _} -> k == "viewBox" end)
-    assert svg.inner =~ "<"
   end
 end
