@@ -6,6 +6,17 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-28
+
+### Added
+
+- Added the Reicon icon provider.
+- Icon references passed through arbitrary component attributes (e.g. `<.stat_card empty_icon="heroicons:inbox" />`) are now discovered, not just the `name` attribute of icon components.
+
+### Changed
+
+- The test suite now runs fully offline against fixture zips; real provider downloads run in a dedicated, non-blocking CI job (`mix test --include network`).
+
 ## [0.2.1] - 2026-06-30
 
 ### Fixed
