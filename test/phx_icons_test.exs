@@ -86,6 +86,25 @@ defmodule PhxIconsTest do
       assert File.exists?(bell_path)
     end
 
+    test "ensure_icons downloads icons passed through arbitrary component attributes" do
+      tag = System.unique_integer([:positive])
+      root = Path.join(System.tmp_dir!(), "phx_icons_root_#{tag}")
+      icons_dir = Path.join(System.tmp_dir!(), "phx_icons_dir_#{tag}")
+      File.mkdir_p!(Path.join(root, "lib"))
+
+      File.write!(
+        Path.join([root, "lib", "page.heex"]),
+        ~s[<.stat_card empty_icon="heroicons:device-phone-mobile" title="Scans" />]
+      )
+
+      icon_path = PhxIcons.Downloader.icon_path(icons_dir, "heroicons", "device-phone-mobile")
+      refute File.exists?(icon_path)
+
+      PhxIcons.Compiler.ensure_icons(icons_dir, root: root)
+
+      assert File.exists?(icon_path)
+    end
+
     test "ensure_icons picks up icons added to existing files between calls" do
       tag = System.unique_integer([:positive])
       root = Path.join(System.tmp_dir!(), "phx_icons_root_#{tag}")

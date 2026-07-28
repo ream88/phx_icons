@@ -4,9 +4,11 @@ defmodule PhxIcons.Compiler do
   # The HEEx tokenizer moved from `Phoenix.LiveView.Tokenizer` to
   # `Phoenix.LiveView.TagEngine.Tokenizer` in LiveView 1.2 (same API). Resolve
   # whichever is present so discovery keeps working across 0.20–1.2+.
-  @tokenizer (if Code.ensure_loaded?(Phoenix.LiveView.TagEngine.Tokenizer),
-                do: Phoenix.LiveView.TagEngine.Tokenizer,
-                else: Phoenix.LiveView.Tokenizer)
+  alias Phoenix.LiveView.TagEngine.Tokenizer
+
+  @tokenizer if Code.ensure_loaded?(Tokenizer),
+               do: Tokenizer,
+               else: Phoenix.LiveView.Tokenizer
 
   @initial_cont (case Application.spec(:phoenix_live_view, :vsn) do
                    nil ->
@@ -167,55 +169,26 @@ defmodule PhxIcons.Compiler do
     _ -> []
   end
 
-  # <.icon name="heroicons:heart" /> — direct icon component call
-  defp extract_refs_from_token({:local_component, "icon", attrs, _meta}, provider_keys) do
-    extract_name_attr(attrs, provider_keys)
-  end
+  # Any string attribute on any tag or component may carry an icon ref —
+  # components forward them under arbitrary names (<.stat_card
+  # empty_icon="heroicons:inbox">). parse_icon_ref/2 requires a configured
+  # provider prefix, so unrelated attributes can't produce false positives.
+  # This mirrors the .ex scanner, which already checks every string literal.
+  defp extract_refs_from_token({type, _name, attrs, _meta}, provider_keys)
+       when type in [:tag, :local_component, :remote_component] do
+    Enum.flat_map(attrs, fn
+      {_attr, {:string, value, _}, _} ->
+        case parse_icon_ref(value, provider_keys) do
+          {:ok, ref} -> [ref]
+          :skip -> []
+        end
 
-  # <Module.icon name="heroicons:heart" /> — remote icon component call. The
-  # tokenizer emits the tag name as a plain string ("Some.Module.icon"), so match
-  # the trailing ".icon" segment rather than a {module, function} tuple.
-  defp extract_refs_from_token({:remote_component, name, attrs, _meta}, provider_keys)
-       when is_binary(name) do
-    if String.ends_with?(name, ".icon") do
-      extract_name_attr(attrs, provider_keys)
-    else
-      extract_icon_attr(attrs, provider_keys)
-    end
-  end
-
-  # Any other component with an "icon" attribute, e.g. <.empty icon="heroicons:inbox">
-  defp extract_refs_from_token({:local_component, _name, attrs, _meta}, provider_keys) do
-    extract_icon_attr(attrs, provider_keys)
+      _ ->
+        []
+    end)
   end
 
   defp extract_refs_from_token(_, _), do: []
-
-  defp extract_name_attr(attrs, provider_keys) do
-    Enum.flat_map(attrs, fn
-      {"name", {:string, value, _}, _} ->
-        case parse_icon_ref(value, provider_keys) do
-          {:ok, ref} -> [ref]
-          :skip -> []
-        end
-
-      _ ->
-        []
-    end)
-  end
-
-  defp extract_icon_attr(attrs, provider_keys) do
-    Enum.flat_map(attrs, fn
-      {"icon", {:string, value, _}, _} ->
-        case parse_icon_ref(value, provider_keys) do
-          {:ok, ref} -> [ref]
-          :skip -> []
-        end
-
-      _ ->
-        []
-    end)
-  end
 
   defp parse_icon_ref(string, provider_keys) do
     case String.split(string, ":", parts: 2) do
